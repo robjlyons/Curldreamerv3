@@ -46,7 +46,7 @@ class Agent(nj.Module):
 
     # World Model
     self.enc = {
-        'simple': bind(nets.SimpleEncoder, **config.enc.simple),
+        'simple': bind(nets.ContrastiveEncoder, projection_dim=256, **config.enc.simple),
     }[config.enc.typ](enc_space, name='enc')
     self.dec = {
         'simple': bind(nets.SimpleDecoder, **config.dec.simple),
