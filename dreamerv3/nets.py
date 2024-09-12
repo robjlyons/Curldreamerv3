@@ -232,9 +232,8 @@ class SimpleEncoder(nj.Module):
   kernel: int = 4
   outer: bool = False
   minres: int = 4
-  projection_dim: int = 128
 
-  def __init__(self, spaces, projection_dim=128, **kw):
+  def __init__(self, spaces, **kw):
     assert all(len(s.shape) <= 3 for s in spaces.values()), spaces
     self.spaces = spaces
     self.veckeys = [k for k, s in spaces.items() if len(s.shape) <= 2]
@@ -243,7 +242,6 @@ class SimpleEncoder(nj.Module):
     self.imginp = Input(self.imgkeys, featdims=3)
     self.depths = tuple(self.depth * mult for mult in self.mults)
     self.kw = kw
-    self.projection_dim = projection_dim
 
   def __call__(self, data, bdims=2):
     kw = dict(**self.kw, norm=self.norm, act=self.act)
@@ -276,18 +274,20 @@ class SimpleEncoder(nj.Module):
 
     x = jnp.concatenate(outs, -1)
     x = x.reshape((*shape, *x.shape[1:]))
-    
-    # Add projection head for contrastive learning
-    latent = x
-    projection = self.get('projector', Linear, self.projection_dim)(latent)
-    
-    return latent, projection
+    return x
 
-  def encode(self, data, bdims=2):
-    # This method returns only the latent representation
-    latent, _ = self(data, bdims)
-    return latent
+class ContrastiveEncoder(nj.Module):
+    def __init__(self, spaces, projection_dim=256, **kw):
+        self.encoder = SimpleEncoder(spaces, **kw)
+        self.projection_dim = projection_dim
 
+    def __call__(self, data, bdims=2):
+        latent = self.encoder(data, bdims)
+        projection = self.get('projector', Linear, self.projection_dim)(latent)
+        return latent, projection
+
+    def encode(self, data, bdims=2):
+        return self.encoder(data, bdims)
 
 class SimpleDecoder(nj.Module):
 
